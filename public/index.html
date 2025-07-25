@@ -181,6 +181,7 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
             z-index: 10;
             border: 1px solid rgba(79, 172, 254, 0.1);
+            background: #2a2a2a; /* Fallback color */
         }
 
         /* Status & Details */
@@ -336,7 +337,7 @@
             height: 100%;
             background: linear-gradient(to right, var(--success), var(--secondary));
             border-radius: 8px;
-            width: 0%;
+            width: 0%; /* Will be set by JS */
             transition: width 1s ease-in-out;
         }
 
@@ -353,12 +354,20 @@
             margin-top: 30px;
         }
 
+        .ping-header {
+             display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
         .ping-content {
             background: rgba(0, 0, 0, 0.25);
             padding: 20px;
             border-radius: var(--border-radius);
             border: 1px solid rgba(79, 172, 254, 0.1);
-            font-family: monospace;
+            font-family: 'Courier New', monospace;
             white-space: pre-wrap;
             max-height: 300px;
             overflow-y: auto;
@@ -403,17 +412,31 @@
 
         .legend-ip { background: red; }
         .legend-accuracy { background: rgba(255, 0, 0, 0.2); border: 1px dashed rgba(255, 0, 0, 0.5); }
+        
+        /* Info for users about limitations */
+        .info-note {
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1><i class="fas fa-satellite-dish"></i> Advanced IP Tracker</h1>
-            <p class="subtitle">Enter an IP address below to get detailed geolocation, network information, and perform a ping test. Uses aggregated data from multiple sources for enhanced accuracy.</p>
+            <p class="subtitle">Enter an IP address below to get geolocation and perform a ping test. Uses <strong>ip-api.com</strong> for location data (no API key required) and your system's ping command.</p>
             
             <div class="input-section">
                 <input type="text" id="ipInput" placeholder="Enter IP address (e.g., 8.8.8.8)" value="8.8.8.8" />
                 <button id="trackButton">Track & Ping IP</button>
+            </div>
+            
+            <div class="info-note">
+                <i class="fas fa-info-circle"></i> <strong>Note:</strong> Location accuracy is estimated and can vary. Mobile IPs or those behind proxies/VPNs may not reflect the physical device location. Ping results depend on network conditions and whether the target allows ICMP requests.
             </div>
         </header>
 
@@ -434,7 +457,7 @@
                     </div>
 
                     <div class="accuracy-section">
-                        <h3 class="accuracy-header"><i class="fas fa-bullseye"></i> Location Accuracy</h3>
+                        <h3 class="accuracy-header"><i class="fas fa-bullseye"></i> Estimated Location Accuracy</h3>
                         <div class="accuracy-content">
                             <div class="accuracy-bar-container">
                                 <div class="accuracy-bar-fill" id="accuracy-bar"></div>
@@ -444,7 +467,7 @@
                     </div>
 
                     <div class="ping-section">
-                        <h3 class="card-title"><i class="fas fa-exchange-alt"></i> Ping Results</h3>
+                        <h3 class="ping-header"><i class="fas fa-exchange-alt"></i> Ping Results</h3>
                         <div class="ping-content" id="ping-data">
                             Ping results will appear here after tracking...
                         </div>
@@ -455,32 +478,35 @@
             <div class="card">
                 <h2 class="card-title"><i class="fas fa-map-marked-alt"></i> Location Map</h2>
                 <div id="map"></div>
+                <div class="info-note" style="margin-top: 15px;">
+                    <i class="fas fa-map-marker-alt"></i> The red circle represents an estimated ~5km radius around the location.
+                </div>
             </div>
         </div>
 
         <footer>
-            <p>Advanced IP Tracker &copy; 2023 | Aggregating data from multiple sources | Accuracy: ~5km radius | Includes Ping Test</p>
+            <p>Advanced IP Tracker &copy; 2023 | Using ip-api.com (no API key) | System Ping | Accuracy: ~5km radius estimate</p>
         </footer>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize map
+        // --- Map Initialization ---
         let map = null;
         let markers = []; // To keep track of markers for clearing
 
         function initMap() {
             if (!map) {
-                map = L.map('map').setView([20, 0], 2);
+                map = L.map('map').setView([20, 0], 2); // Start view
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 }).addTo(map);
             }
         }
 
         // Function to calculate accuracy percentage based on radius
         function getAccuracyPercentage(radiusKm) {
-            const maxRadius = 1000;
+            const maxRadius = 1000; // Arbitrary max for visualization
             return Math.max(0, 100 - (radiusKm / maxRadius) * 100);
         }
 
@@ -503,7 +529,7 @@
             }
         }
 
-        // Main tracking function
+        // --- Main Tracking Function ---
         async function trackIP() {
             const ip = document.getElementById('ipInput').value.trim();
             const statusEl = document.getElementById('status');
@@ -514,7 +540,7 @@
 
             // Reset UI
             detailsEl.style.display = 'none';
-            pingDataEl.textContent = 'Ping test in progress...';
+            pingDataEl.textContent = 'Ping test initiated...';
             pingDataEl.classList.remove('ping-error');
             accuracyBar.style.width = '0%';
             accuracyTextEl.textContent = 'N/A';
@@ -526,29 +552,38 @@
                 return;
             }
 
+            // Basic IP validation in frontend as well
+            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipRegex.test(ip)) {
+                 statusEl.innerHTML = '<span class="status-message error"><i class="fas fa-exclamation-triangle"></i> Invalid IP address format</span>';
+                 return;
+            }
+
             statusEl.innerHTML = '<div class="status-message loading"><div class="spinner"></div> Locating IP and performing ping...</div>';
 
             try {
-                const response = await fetch(`/api/track/${ip}`);
+                // --- Call Backend API ---
+                const response = await fetch(`/api/track/${encodeURIComponent(ip)}`);
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to track IP');
+                    // Handle HTTP errors from the backend
+                    throw new Error(data.error || `Backend request failed (${response.status})`);
                 }
 
-                // Handle geolocation data
+                // --- Process Geolocation Data ---
                 if (data.geolocation) {
                     const geo = data.geolocation;
                     const lat = parseFloat(geo.lat);
                     const lon = parseFloat(geo.lon);
 
-                    // Update accuracy
+                    // Update accuracy indicator (fixed at 5km as requested)
                     const accuracyRadiusKm = data.accuracyRadiusKm || 5;
                     const accuracyPercentage = getAccuracyPercentage(accuracyRadiusKm);
                     accuracyBar.style.width = `${accuracyPercentage}%`;
                     accuracyTextEl.textContent = getAccuracyText(accuracyPercentage);
 
-                    // Populate details
+                    // --- Populate Details Section ---
                     detailsEl.innerHTML = `
                         <div class="detail-card">
                             <h3><i class="fas fa-map-marker-alt"></i> Location</h3>
@@ -572,6 +607,10 @@
                                 <span class="detail-label">Postal Code:</span>
                                 <span class="detail-value">${geo.zip || 'N/A'}</span>
                             </div>
+                             <div class="detail-item">
+                                <span class="detail-label">Timezone:</span>
+                                <span class="detail-value">${geo.timezone || 'N/A'}</span>
+                            </div>
                         </div>
                         <div class="detail-card">
                             <h3><i class="fas fa-network-wired"></i> Network</h3>
@@ -587,22 +626,34 @@
                                 <span class="detail-label">ASN:</span>
                                 <span class="detail-value">${geo.as || 'N/A'}</span>
                             </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Timezone:</span>
-                                <span class="detail-value">${geo.timezone || 'N/A'}</span>
+                             <div class="detail-item">
+                                <span class="detail-label">Reverse DNS:</span>
+                                <span class="detail-value">${geo.reverse || 'N/A'}</span>
+                            </div>
+                             <div class="detail-item">
+                                <span class="detail-label">Mobile:</span>
+                                <span class="detail-value">${geo.mobile ? 'Yes' : 'No'}</span>
+                            </div>
+                             <div class="detail-item">
+                                <span class="detail-label">Proxy/VPN:</span>
+                                <span class="detail-value">${geo.proxy ? 'Likely' : 'Unlikely'}</span>
+                            </div>
+                             <div class="detail-item">
+                                <span class="detail-label">Hosting:</span>
+                                <span class="detail-value">${geo.hosting ? 'Yes' : 'No'}</span>
                             </div>
                         </div>
                     `;
                     detailsEl.style.display = 'grid';
 
-                    // Update map
+                    // --- Update Map ---
                     map.setView([lat, lon], 12);
                     const marker = L.marker([lat, lon]).addTo(map);
                     marker.bindPopup(`
                         <b>IP: ${geo.query}</b><br>
                         ${geo.city || 'N/A'}, ${geo.regionName || 'N/A'}<br>
                         ${geo.country || 'N/A'}<br>
-                        <i>~${accuracyRadiusKm}km accuracy</i>
+                        <i>~${accuracyRadiusKm}km estimated radius</i>
                     `).openPopup();
                     markers.push(marker);
 
@@ -624,32 +675,38 @@
                     markers.push(accuracyCircle);
 
                 } else if (data.geolocation_error) {
-                    detailsEl.innerHTML = `<div class="detail-card"><p>Error fetching location: ${data.geolocation_error}</p></div>`;
+                    detailsEl.innerHTML = `<div class="detail-card"><p class="error"><i class="fas fa-exclamation-triangle"></i> Geolocation Error: ${data.geolocation_error}</p></div>`;
                     detailsEl.style.display = 'block';
+                } else {
+                     detailsEl.innerHTML = `<div class="detail-card"><p>No geolocation data available.</p></div>`;
+                     detailsEl.style.display = 'block';
                 }
 
-                // Handle ping data
+                // --- Process Ping Data ---
                 if (data.ping !== null) {
                     pingDataEl.textContent = data.ping;
                 } else if (data.ping_error) {
                     pingDataEl.textContent = `Ping Error: ${data.ping_error}`;
                     pingDataEl.classList.add('ping-error');
                 } else {
-                    pingDataEl.textContent = 'Ping test was not performed or no data returned.';
+                    pingDataEl.textContent = 'Ping test completed, but no output was captured.';
                 }
 
-                // Update status
+                // --- Update Status ---
                 statusEl.innerHTML = '<span class="status-message success"><i class="fas fa-check-circle"></i> Tracking and Ping Complete</span>';
 
             } catch (error) {
                 console.error('Tracking error:', error);
                 statusEl.innerHTML = `<span class="status-message error"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message || 'Failed to track IP'}</span>`;
-                pingDataEl.textContent = `Request failed: ${error.message}`;
-                pingDataEl.classList.add('ping-error');
+                // Also update ping area to show the error if it was a general failure
+                if (!pingDataEl.textContent || pingDataEl.textContent.includes("Ping results will appear")) {
+                     pingDataEl.textContent = `Request failed: ${error.message}`;
+                     pingDataEl.classList.add('ping-error');
+                }
             }
         }
 
-        // Event Listeners
+        // --- Event Listeners ---
         document.getElementById('trackButton').addEventListener('click', trackIP);
 
         document.getElementById('ipInput').addEventListener('keypress', function(e) {
@@ -658,7 +715,7 @@
             }
         });
 
-        // Initialize map on load (optional, will also init on first track)
+        // --- Initialize ---
         window.addEventListener('DOMContentLoaded', () => {
             initMap();
         });
