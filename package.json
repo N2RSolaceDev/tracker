@@ -1,0 +1,25 @@
+{
+  "name": "ip-tracker-app",
+  "version": "1.0.0",
+  "description": "A simple IP location tracker served with Node.js",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "ip",
+    "tracker",
+    "geolocation",
+    "node",
+    "express"
+  ],
+  "author": "Solace",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
