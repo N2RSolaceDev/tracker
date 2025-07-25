@@ -1,7 +1,7 @@
 {
-  "name": "ip-tracker-app",
+  "name": "advanced-ip-tracker",
   "version": "1.0.0",
-  "description": "A simple IP location tracker served with Node.js",
+  "description": "An advanced IP location tracker with backend data aggregation",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -11,13 +11,16 @@
     "ip",
     "tracker",
     "geolocation",
+    "whois",
     "node",
     "express"
   ],
-  "author": "Solace",
+  "author": "solace",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "axios": "^1.4.0",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
