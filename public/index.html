@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced IP Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4facfe;
+            --secondary: #00f2fe;
+            --accent: #ff6b6b;
+            --dark-bg: #0f1a24;
+            --card-bg: rgba(15, 26, 36, 0.85);
+            --text-light: #ffffff;
+            --text-muted: #a0aec0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border-radius: 12px;
+            --box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c1420, #1a2a40, #0c1420);
+            color: var(--text-light);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: 1px solid rgba(79, 172, 254, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 800px;
+            margin: 0 auto 25px;
+        }
+
+        /* Input Section */
+        .input-section {
+            max-width: 700px;
+            margin: 0 auto 30px;
+            display: flex;
+            gap: 15px;
+        }
+
+        #ipInput {
+            flex-grow: 1;
+            padding: 18px 20px;
+            border-radius: var(--border-radius);
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            background: rgba(10, 20, 30, 0.7);
+            color: white;
+            font-size: 1.1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #ipInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+        }
+
+        #trackButton {
+            padding: 18px 30px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            border: none;
+            border-radius: var(--border-radius);
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #trackButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 242, 254, 0.4);
+        }
+
+        #trackButton:active {
+            transform: translateY(0);
+        }
+
+        #trackButton:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Main Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1100px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-shadow: var(--box-shadow);
+            border: 1px solid rgba(79, 172, 254, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 100, 255, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--primary);
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(79, 172, 254, 0.2);
+        }
+
+        /* Map */
+        #map {
+            height: 550px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+            border: 1px solid rgba(79, 172, 254, 0.1);
+        }
+
+        /* Status & Details */
+        .status-container {
+            text-align: center;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: var(--border-radius);
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(79, 172, 254, 0.1);
+        }
+
+        .status-message {
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .loading {
+            color: var(--warning);
+        }
+
+        .success {
+            color: var(--success);
+        }
+
+        .error {
+            color: var(--error);
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary);
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pulse {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 25px;
+        }
+
+        .detail-card {
+            background: rgba(0, 0, 0, 0.25);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-card:hover {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .detail-card h3 {
+            color: var(--primary);
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .detail-item {
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .detail-value {
+            font-weight: 500;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        /* Accuracy Indicator */
+        .accuracy-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(79, 172, 254, 0.1);
+        }
+
+        .accuracy-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        .accuracy-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .accuracy-bar-container {
+            flex-grow: 1;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .accuracy-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, var(--success), var(--secondary));
+            border-radius: 8px;
+            width: 0%;
+            transition: width 1s ease-in-out;
+        }
+
+        .accuracy-text {
+            font-weight: bold;
+            min-width: 120px;
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--secondary);
+        }
+
+        /* Ping Section */
+        .ping-section {
+            margin-top: 30px;
+        }
+
+        .ping-content {
+            background: rgba(0, 0, 0, 0.25);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(79, 172, 254, 0.1);
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+            color: #e2e8f0; /* Light gray for better readability */
+        }
+
+        .ping-error {
+            color: var(--error);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            font-size: 1rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(79, 172, 254, 0.1);
+        }
+
+        /* Legend */
+        .legend {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-ip { background: red; }
+        .legend-accuracy { background: rgba(255, 0, 0, 0.2); border: 1px dashed rgba(255, 0, 0, 0.5); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-satellite-dish"></i> Advanced IP Tracker</h1>
+            <p class="subtitle">Enter an IP address below to get detailed geolocation, network information, and perform a ping test. Uses aggregated data from multiple sources for enhanced accuracy.</p>
+            
+            <div class="input-section">
+                <input type="text" id="ipInput" placeholder="Enter IP address (e.g., 8.8.8.8)" value="8.8.8.8" />
+                <button id="trackButton">Track & Ping IP</button>
+            </div>
+        </header>
+
+        <div class="content-grid">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-info-circle"></i> Tracking Results</h2>
+                
+                <div id="info">
+                    <div class="status-container">
+                        <div id="status" class="status-message loading">
+                            <div class="spinner"></div>
+                            Enter an IP address and click "Track & Ping IP"
+                        </div>
+                    </div>
+                    
+                    <div id="details" class="details-grid" style="display: none;">
+                        <!-- Details will be populated here by JS -->
+                    </div>
+
+                    <div class="accuracy-section">
+                        <h3 class="accuracy-header"><i class="fas fa-bullseye"></i> Location Accuracy</h3>
+                        <div class="accuracy-content">
+                            <div class="accuracy-bar-container">
+                                <div class="accuracy-bar-fill" id="accuracy-bar"></div>
+                            </div>
+                            <div class="accuracy-text" id="accuracy-text">N/A</div>
+                        </div>
+                    </div>
+
+                    <div class="ping-section">
+                        <h3 class="card-title"><i class="fas fa-exchange-alt"></i> Ping Results</h3>
+                        <div class="ping-content" id="ping-data">
+                            Ping results will appear here after tracking...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-map-marked-alt"></i> Location Map</h2>
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Advanced IP Tracker &copy; 2023 | Aggregating data from multiple sources | Accuracy: ~5km radius | Includes Ping Test</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        let map = null;
+        let markers = []; // To keep track of markers for clearing
+
+        function initMap() {
+            if (!map) {
+                map = L.map('map').setView([20, 0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }).addTo(map);
+            }
+        }
+
+        // Function to calculate accuracy percentage based on radius
+        function getAccuracyPercentage(radiusKm) {
+            const maxRadius = 1000;
+            return Math.max(0, 100 - (radiusKm / maxRadius) * 100);
+        }
+
+        // Function to get accuracy text based on percentage
+        function getAccuracyText(percentage) {
+            if (percentage >= 90) return "Very High";
+            if (percentage >= 75) return "High";
+            if (percentage >= 60) return "Medium-High";
+            if (percentage >= 40) return "Medium";
+            if (percentage >= 20) return "Low-Medium";
+            if (percentage > 0) return "Low";
+            return "N/A";
+        }
+
+        // Function to clear previous map markers
+        function clearMapMarkers() {
+            if (map) {
+                markers.forEach(marker => map.removeLayer(marker));
+                markers = [];
+            }
+        }
+
+        // Main tracking function
+        async function trackIP() {
+            const ip = document.getElementById('ipInput').value.trim();
+            const statusEl = document.getElementById('status');
+            const detailsEl = document.getElementById('details');
+            const pingDataEl = document.getElementById('ping-data');
+            const accuracyBar = document.getElementById('accuracy-bar');
+            const accuracyTextEl = document.getElementById('accuracy-text');
+
+            // Reset UI
+            detailsEl.style.display = 'none';
+            pingDataEl.textContent = 'Ping test in progress...';
+            pingDataEl.classList.remove('ping-error');
+            accuracyBar.style.width = '0%';
+            accuracyTextEl.textContent = 'N/A';
+            clearMapMarkers();
+            initMap(); // Ensure map is initialized
+
+            if (!ip) {
+                statusEl.innerHTML = '<span class="status-message error"><i class="fas fa-exclamation-triangle"></i> Please enter a valid IP address</span>';
+                return;
+            }
+
+            statusEl.innerHTML = '<div class="status-message loading"><div class="spinner"></div> Locating IP and performing ping...</div>';
+
+            try {
+                const response = await fetch(`/api/track/${ip}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to track IP');
+                }
+
+                // Handle geolocation data
+                if (data.geolocation) {
+                    const geo = data.geolocation;
+                    const lat = parseFloat(geo.lat);
+                    const lon = parseFloat(geo.lon);
+
+                    // Update accuracy
+                    const accuracyRadiusKm = data.accuracyRadiusKm || 5;
+                    const accuracyPercentage = getAccuracyPercentage(accuracyRadiusKm);
+                    accuracyBar.style.width = `${accuracyPercentage}%`;
+                    accuracyTextEl.textContent = getAccuracyText(accuracyPercentage);
+
+                    // Populate details
+                    detailsEl.innerHTML = `
+                        <div class="detail-card">
+                            <h3><i class="fas fa-map-marker-alt"></i> Location</h3>
+                            <div class="detail-item">
+                                <span class="detail-label">Coordinates:</span>
+                                <span class="detail-value">${lat.toFixed(6)}, ${lon.toFixed(6)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">City:</span>
+                                <span class="detail-value">${geo.city || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Region:</span>
+                                <span class="detail-value">${geo.regionName || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Country:</span>
+                                <span class="detail-value">${geo.country} (${geo.countryCode})</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Postal Code:</span>
+                                <span class="detail-value">${geo.zip || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="detail-card">
+                            <h3><i class="fas fa-network-wired"></i> Network</h3>
+                            <div class="detail-item">
+                                <span class="detail-label">ISP:</span>
+                                <span class="detail-value">${geo.isp || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Organization:</span>
+                                <span class="detail-value">${geo.org || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">ASN:</span>
+                                <span class="detail-value">${geo.as || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Timezone:</span>
+                                <span class="detail-value">${geo.timezone || 'N/A'}</span>
+                            </div>
+                        </div>
+                    `;
+                    detailsEl.style.display = 'grid';
+
+                    // Update map
+                    map.setView([lat, lon], 12);
+                    const marker = L.marker([lat, lon]).addTo(map);
+                    marker.bindPopup(`
+                        <b>IP: ${geo.query}</b><br>
+                        ${geo.city || 'N/A'}, ${geo.regionName || 'N/A'}<br>
+                        ${geo.country || 'N/A'}<br>
+                        <i>~${accuracyRadiusKm}km accuracy</i>
+                    `).openPopup();
+                    markers.push(marker);
+
+                    // Add pulsing marker
+                    const pulsingIcon = L.divIcon({
+                        className: 'pulse',
+                        iconSize: [20, 20]
+                    });
+                    const pulseMarker = L.marker([lat, lon], {icon: pulsingIcon}).addTo(map);
+                    markers.push(pulseMarker);
+
+                    // Add accuracy circle
+                    const accuracyCircle = L.circle([lat, lon], {
+                        color: 'red',
+                        fillColor: '#f03',
+                        fillOpacity: 0.1,
+                        radius: accuracyRadiusKm * 1000 // Convert km to meters
+                    }).addTo(map);
+                    markers.push(accuracyCircle);
+
+                } else if (data.geolocation_error) {
+                    detailsEl.innerHTML = `<div class="detail-card"><p>Error fetching location: ${data.geolocation_error}</p></div>`;
+                    detailsEl.style.display = 'block';
+                }
+
+                // Handle ping data
+                if (data.ping !== null) {
+                    pingDataEl.textContent = data.ping;
+                } else if (data.ping_error) {
+                    pingDataEl.textContent = `Ping Error: ${data.ping_error}`;
+                    pingDataEl.classList.add('ping-error');
+                } else {
+                    pingDataEl.textContent = 'Ping test was not performed or no data returned.';
+                }
+
+                // Update status
+                statusEl.innerHTML = '<span class="status-message success"><i class="fas fa-check-circle"></i> Tracking and Ping Complete</span>';
+
+            } catch (error) {
+                console.error('Tracking error:', error);
+                statusEl.innerHTML = `<span class="status-message error"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message || 'Failed to track IP'}</span>`;
+                pingDataEl.textContent = `Request failed: ${error.message}`;
+                pingDataEl.classList.add('ping-error');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('trackButton').addEventListener('click', trackIP);
+
+        document.getElementById('ipInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                trackIP();
+            }
+        });
+
+        // Initialize map on load (optional, will also init on first track)
+        window.addEventListener('DOMContentLoaded', () => {
+            initMap();
+        });
+    </script>
+</body>
+</html>
